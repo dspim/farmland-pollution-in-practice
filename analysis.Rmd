@@ -36,20 +36,21 @@ options(width = 100)
 
 這份教案在保留原汁原味的前提下，以環保署2016年的列管資料重現當時的研究成果，以本著作係採用<a rel="license" href="http://creativecommons.org/licenses/by/3.0/tw/">創用 CC 姓名標示 3.0 台灣 授權條款</a>授權。
 
-## 載入實作練習包
+## 環境設定
+### 1.載入實作練習包
 - 先確認您的電腦安裝了[R](http://cran.csie.ntu.edu.tw/) 與 [R studio](https://www.rstudio.com/products/rstudio/download/#download)
 - 進入課程練習包教材 [Github頁面](https://github.com/dspim/farmland-pollution-in-practice)
 - 將請到本頁面中點選 [Clone or download -> Download ZIP](https://github.com/dspim/farmland-pollution-in-practice/archive/master.zip)，將課程包下載到自己的電腦中
 - 解開壓縮後點擊 `FPP.Rproj` 開啟實作練習教材
 
-## 安裝需到的R套件
+### 2.安裝需到的R套件
 ```{r}
 list.of.packages <- c("knitr", "dplyr", "plotly", "scales", "leaflet", "kableExtra", "stringr")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 ```
 
-##  資料匯入
+###  3.資料匯入
 - 使用 `read.csv` 匯入資料
 - 建議把游標移到`" "` (雙引號) 裡面按Tab鍵選取檔案
 ```{r}
