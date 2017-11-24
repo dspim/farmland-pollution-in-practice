@@ -5,7 +5,6 @@ body {
 
 
 h1, h2, h3{
-	font-family: "Microsoft JhengHei", "Open Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
 	font-size: 1.4em !important;
 	font-weight: bold;
   line-height: 2em;
@@ -40,8 +39,4 @@ blockquote {
     margin-right: 40px;
     background-color: #e8e8e8;
     padding: 10px;
-}
-
-img{
- 	width: 100% !important;
 }
