@@ -9,4 +9,4 @@
 
 這份教案在保留原汁原味的前提下，以環保署2016年的列管資料重現當時的研究成果，以本著作係採用<a rel="license" href="http://creativecommons.org/licenses/by/3.0/tw/">創用 CC 姓名標示 3.0 台灣 授權條款</a>授權。
 
->> 進入[教案頁面](analysis.html)
+> 進入[教案頁面](https://dspim.github.io/farmland-pollution-in-practice/analysis.html)
