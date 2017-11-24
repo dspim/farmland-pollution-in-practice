@@ -23,12 +23,13 @@ knitr::opts_chunk$set(echo = TRUE,
                       out.height ='500px')
 ```
 
-## 下載實作練習包
-- 
+## 載入實作練習包
+- 先確認您的電腦安裝了[R](http://cran.csie.ntu.edu.tw/) 與 [R studio](https://www.rstudio.com/products/rstudio/download/#download)
+- 將請到本頁面中點選下載zip，將課程包下載到自己的電腦中
+- 解開壓縮後點擊 fpp.Rproj 已開啟實作練習教材
 
 
 ## 新增一個R專案 (.Rproj)
-- 先確認您的電腦安裝了[R](http://cran.csie.ntu.edu.tw/) 與 [R studio](https://www.rstudio.com/products/rstudio/download/#download)
 
 - 打開R studio，建立一個新專案，指定路徑到你的工作路徑
 ![](src/建立新專案1.png)
