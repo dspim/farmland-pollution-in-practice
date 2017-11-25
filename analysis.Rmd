@@ -44,7 +44,7 @@ options(width = 100)
 > - 2016.07.  成果納入環保署土壤及地下水污染調查及整治計畫    
 > - 2017.02.  完成8百多處初篩，部分案例進入第二階段細調    
 > - 2017.11.  將成果製作成R語言教材對外發布    
-> - 2018.03 預計完成細調並提報告    
+> - 2018.03.  預計完成細調並提報告    
 
 
 ## 環境設定
@@ -324,9 +324,10 @@ for(i in 1:nrow(data_TARI)){
 
 # 以農試所樣區為主體，計算每一個樣區方圓一公里內有多少個超標樣區
 for(i in 1:nrow(data_TARI)){
-  data_TARI$minover[i] <-
-    ((data_TARI$XLO[i]-data_TARI$XLO)^2+(data_TARI$YLO[i]-data_TARI$YLO)^2) %>% 
-    sqrt %>% sum(na.rm = TRUE)
+  tmp <- 
+    sqrt((data_TARI$XLO[i]-data_TARI$XLO)^2+(data_TARI$YLO[i]-data_TARI$YLO)^2)
+  
+  data_TARI$minover[i] <- sum(tmp<=1000, na.rm = TRUE)
 }
 
 # 以農試所樣區為主體，計算每一個樣區境內是否有環保署列管農地
@@ -383,9 +384,9 @@ TARI <- data_TARI %>% select(lat = Y,lon = X, area = AREA)
 leaflet() %>% setView(lng=120.58,lat=23.58,zoom=8) %>% 
   addProviderTiles("Esri.WorldImagery") %>%
   addCircles(data = EPA, color = "red", 
-             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area/2)) %>%
+             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area)/2) %>%
   addCircles(data = TARI, color = "yellow",
-             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area/2))
+             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area)/2)
  
 ```
 
@@ -398,7 +399,7 @@ TARI <- data_TARI %>%
 
 leaflet() %>% 
   addCircles(data=TARI,lng = ~lon, lat = ~lat, 
-             radius = ~sqrt(area/2), weight = 1,
+             radius = ~sqrt(area)/2, weight = 1,
              fill=TRUE, fillOpacity = 0.8,
              color=~colorNumeric(c("#CD0000", "#FFFFFF","#0B752F"),
                                  log_mindistance)(log_mindistance)) %>% 
