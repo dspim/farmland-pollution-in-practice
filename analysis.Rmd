@@ -324,8 +324,7 @@ for(i in 1:nrow(data_TARI)){
 
 # 以農試所樣區為主體，計算每一個樣區方圓一公里內有多少個超標樣區
 for(i in 1:nrow(data_TARI)){
-  tmp <- 
-    sqrt((data_TARI$XLO[i]-data_TARI$XLO)^2+(data_TARI$YLO[i]-data_TARI$YLO)^2)
+  tmp <- sqrt((data_TARI$XLO[i]-data_TARI$XLO)^2+(data_TARI$YLO[i]-data_TARI$YLO)^2)
   
   data_TARI$minover[i] <- sum(tmp<=1000, na.rm = TRUE)
 }
