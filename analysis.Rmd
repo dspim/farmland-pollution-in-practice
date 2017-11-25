@@ -56,7 +56,7 @@ options(width = 100)
 
 ### 2.安裝需到的R套件
 ```{r}
-list.of.packages <- c("knitr", "dplyr", "plotly", "scales", "leaflet", "kableExtra", "stringr")
+list.of.packages <- c("knitr", "kableExtra", "stringr", "dplyr", "plotly", "scales", "leaflet")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 ```
