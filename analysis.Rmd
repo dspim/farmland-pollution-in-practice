@@ -1,6 +1,6 @@
 ---
 title: "農地重金屬污染潛勢分析實作 by R"
-author: "Ting-An Jiang, Yu Ying Han, Johnson Hsieh"
+author: "Ting-An Jiang, Yu Ying Han, Johnson Hsieh , Ning Chen"
 date: "2017年11月25日"
 output:
   html_document:
@@ -56,7 +56,7 @@ options(width = 100)
 
 ### 2.安裝需到的R套件
 ```{r}
-list.of.packages <- c("knitr", "dplyr", "plotly", "scales", "leaflet", "kableExtra", "stringr")
+list.of.packages <- c("knitr", "kableExtra", "stringr", "dplyr", "plotly", "scales", "leaflet")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 ```
@@ -85,7 +85,8 @@ data_EPA <- data_EPA %>%
 # 預覽資料
 head(data_EPA)
 
-summarise_data <- data_EPA %>% group_by(county) %>% 
+summarise_data <- data_EPA %>% 
+group_by(county) %>%                                     # 以縣市做加總
   summarise(count = n(),                                 # 所有案件數
             sum_area = sum(area),                        # 場址面積總和
             control_area = sum(area[free_date=="無"]),   # 列管面積總和 (平方公尺)
@@ -97,10 +98,23 @@ summarise_data <- data_EPA %>% group_by(county) %>%
          ratio_free = sprintf("%1.0f%%",count_free/count*100))       # 解除列管比例
 
 ```
+### 作圖
+```{r out.height ='400px'}
+library(plotly)
+plot_ly(summarise_data, x = ~county, y = ~count_control, type = "bar") %>% 
+  layout(title = "所有列管案件",
+         xaxis = list(title = '全台縣市'),
+         yaxis = list(title = '列管案件數'),
+         width = 750, height = 400)
+```
+
+
 
 ### **2.計算平均列管月份**
 
 ```{r}
+#data_EPA的格式是Factor
+
 data_EPA <- mutate(data_EPA,
                    control_date = as.Date(control_date), # 把列管時間轉成日期格式
                    free_date = as.Date(free_date), # 把列管時間轉成日期格式
@@ -123,8 +137,10 @@ for(i in 1:nrow(data_EPA)){
 avg_month <- data_EPA %>% group_by(county) %>% 
   summarise(control_month = mean(totol_month[free_date=="2016-12-18"], na.rm = TRUE) %>% 
                             round(), 
+  #找出列管中
             free_month = mean(totol_month[free_date!="2016-12-18"], na.rm = TRUE) %>% 
                          round())
+  #找出解列的 
 # 因為資料中有一筆沒有列管時間，因此把參數 na.rm 改為TRUE，才可以運算
 
 # 把無列管中的平均月份帶0
@@ -137,19 +153,36 @@ summarise_data <- summarise_data %>%
 
 ### **3.計算全國加總**
 ```{r}
-tmp <- colSums(summarise_data[,2:8]) %>% t() %>% as.data.frame() %>% 
+tmp1 <- colSums(summarise_data[,2:8]) %>% t() %>% as.data.frame() %>% 
   mutate(ratio_control = sprintf("%1.0f%%",count_control/count*100),
-         ratio_free = sprintf("%1.0f%%",count_free/count*100)) %>% 
-  cbind(.,colMeans(summarise_data[,11:12]) %>% round() %>% t() %>% as.data.frame()) %>%
-  mutate(county="全國") %>% 
-  select(12,1:11)
-
+         ratio_free = sprintf("%1.0f%%",count_free/count*100))
+tmp2<-
+  colMeans(summarise_data[,11:12]) %>% round() %>% t() %>% as.data.frame() %>%
+  mutate(county="全國") 
+#各縣市平均列管月數及平均解列月數轉換成全國平均列管月及解列月數
+tmp<-cbind(tmp1,tmp2)
+#將 全國相關的兩個資料做合併
 summarise_data <- rbind(tmp, summarise_data)
+#與原先各縣市資料做合併
 ```
+### 作圖
+- Bar Chart
+```{r out.height ='400px'}
+
+# x軸依據案件數做排序
+plot_ly(summarise_data, 
+         x = ~reorder(county, -count_control), 
+         y = ~count_control, type = "bar") %>% 
+  layout(title = "所有列管案件",
+         xaxis = list(title = '全台縣市'),
+         yaxis = list(title = '列管案件數'),
+         width = 750, height = 400)
+```
+
 
 ### **4.將欄位改成中文敘述並進行展示**
 ```{r eval=FALSE}
-tmp2 <- 
+tmp3 <- 
   summarise_data %>% 
   select(`全台縣市`=county,
          `案件數`=count,
@@ -164,14 +197,14 @@ tmp2 <-
          `列管中_平均列管月份`=control_month,
          `解除列管_平均列管月份`=free_month) %>% 
   arrange(desc(`案件數`))
-tmp2
+tmp3
 ```
 
 
 ```{r echo=FALSE}
 library(knitr)
 library(kableExtra)
-tmp2 <- 
+tmp3 <- 
   summarise_data %>% 
   select(`全台縣市`=county,
          `案件數`=count,
@@ -186,82 +219,12 @@ tmp2 <-
          `列管中_平均列管月份`=control_month,
          `解除列管_平均列管月份`=free_month) %>% 
   arrange(desc(`案件數`))
-tmp2 %>% kable(.,format = "html") %>% 
+tmp3 %>% kable(.,format = "html") %>% 
   kable_styling(bootstrap_options = "striped", font_size = 12) %>% 
   scroll_box(height = "350px")
 ```
 
-### **5.使用 `plotly` 套件繪製統計圖表**
 
-- Bar Chart
-```{r out.height ='400px'}
-library(plotly)
-
-plot_ly(summarise_data, x = ~county, y = ~count_control, type = "bar") %>% 
-  layout(title = "所有案件",
-         xaxis = list(title = '全台縣市'),
-         yaxis = list(title = '案件數'),
-         width = 750, height = 400)
-
-# x軸依據案件數做排序
-plot_ly(summarise_data, 
-         x = ~reorder(county, -count_control), 
-         y = ~count_control, type = "bar") %>% 
-  layout(title = "所有案件",
-         xaxis = list(title = '全台縣市'),
-         yaxis = list(title = '案件數'),
-         width = 750, height = 400)
-```
-
-- Grouped Bar Chart
-- with Hover Text and Rotated Labels
-```{r out.height ='400px'}
-plot_ly(summarise_data, 
-        x = ~reorder(county, -count_control), 
-        y = ~count_control, type = 'bar',
-        name = '列管案件', text = ~ratio_control) %>%
-  add_trace(y = ~count_free, name = '解除列管案件', text = ~ratio_free) %>%
-  layout(xaxis = list(title = "", tickangle = -45), 
-         yaxis = list(title = 'count'), barmode = 'group',
-         width = 800, height = 400)
-```
-
-- Pie Chart
-```{r fig.height = 4, fig.width = 4}
-#列管縣市太多，很多面積很小，取場址面積大於中位數的來畫圖
-summarise_data1 <- summarise_data %>% 
-  arrange(sum_area %>% desc) %>%  # 降冪排序
-  filter(sum_area > median(sum_area)) %>%  # 篩選大於中位數者
-  slice(-1) # 移除全國總和數據
-
-plot_ly(summarise_data1, labels = ~county, values = ~sum_area, type = 'pie',
-        textinfo = 'label+percent') %>%
-  layout(title = '場址面積總和',  width = 800, height = 500,
-         margin=list(l = 100, r = 50, b = 100, t = 100, pad = 4))
-```
-
-### **6.場址座標轉經緯度**
-
-- 把TWD97位址資訊抓出來，分割成x軸與y軸
-```{r}
-head(data_EPA,3) #可以看到座標欄位裡面有：和，
-TWD97 <- data_EPA$coordinate %>% as.character() %>% 
-  stringr::str_split(.,'[，：]',simplify = TRUE) %>% 
-  as.data.frame(., stringsAsFactors=FALSE) %>% select(x=2,y=4) 
-```
-
-- 將經緯度資訊從[TWD97轉為WGS84](https://goo.gl/dDo4mQ)
-- 匯入[轉碼程式包](https://github.com/snexuz/TWD97TM2toWGS84)並用`source()`載入
-- 利用轉碼函式將TWD97座標轉成經緯度座標系統
-```{r}
-source("https://raw.githubusercontent.com/snexuz/TWD97TM2toWGS84/master/TWD97TM2toWGS84.R")
-WGS84 <- TWD97TM2toWGS84(TWD97$x, TWD97$y) %>% as.data.frame()
-
-#合併回原本的data
-data_EPA$coordinate <- NULL
-data_EPA <- cbind(data_EPA,TWD97,WGS84)
-head(data_EPA)
-```
 
 ---
 
@@ -307,10 +270,101 @@ data_TARI <- data_TARI %>%
                        NIAR_OVER+PBAR_OVER>=1, 1, 0))
 ```
 
+
+### **2 將農試所的超標與環保署列管案件在地圖上比較分布差異**
+
+#### **2.1環保署資料場址座標轉經緯度**
+
+- 把TWD97位址資訊抓出來，分割成x軸與y軸
+```{r}
+head(data_EPA,3) #可以看到座標欄位裡面有：和，
+TWD97 <- data_EPA$coordinate %>% as.character() %>% 
+#將原本是factor轉成character
+  stringr::str_split(.,'[，：]',simplify = TRUE) %>% 
+#將,;都切開
+  as.data.frame(., stringsAsFactors=FALSE) %>% select(x=2,y=4) 
+#只選第二及第四欄給欄位名x及y
+```
+
+- 將經緯度資訊從[TWD97轉為WGS84](https://goo.gl/dDo4mQ)
+- 匯入[轉碼程式包](https://github.com/snexuz/TWD97TM2toWGS84)並用`source()`載入
+- 利用轉碼函式將TWD97座標轉成經緯度座標系統
+```{r}
+source("https://raw.githubusercontent.com/snexuz/TWD97TM2toWGS84/master/TWD97TM2toWGS84.R")
+WGS84 <- TWD97TM2toWGS84(TWD97$x, TWD97$y) %>% as.data.frame()
+
+#合併回原本的data
+data_EPA$coordinate <- NULL
+data_EPA <- cbind(data_EPA,TWD97,WGS84)
+head(data_EPA)
+```
+
+
+
+
+#### **2.2用leaflet畫地圖**
+
+#### 地圖一：兩份資料交叉比對
+
+```{r　out.width ='600px', out.height ='700px'}
+library(leaflet)
+
+#先把要點上圖的資料篩選出來
+EPA <- data_EPA %>% filter(free_date=="2016-12-18") %>% select(lat, lon, area)
+TARI <- data_TARI %>% select(lat = Y,lon = X, area = AREA)
+
+
+leaflet() %>% setView(lng=120.58,lat=23.58,zoom=8) %>% 
+  addProviderTiles("Esri.WorldImagery") %>%
+  addCircles(data = EPA, color = "red", 
+             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area)/2) %>%
+  addCircles(data = TARI, color = "yellow",
+             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area)/2)
+ 
+```
+
+
+## Part 3 同學實作練習
+
+### **1.使用 `plotly` 套件環保署繪製統計圖表**
+
+- Grouped Bar Chart
+- with Hover Text and Rotated Labels
+```{r out.height ='400px'}
+plot_ly(summarise_data, 
+        x = ~reorder(county, -count_control), 
+        y = ~count_control, type = 'bar',
+        name = '列管案件', text = ~ratio_control) %>%
+  add_trace(y = ~count_free, name = '解除列管案件', text = ~ratio_free) %>%
+  layout(xaxis = list(title = "", tickangle = -45), 
+         yaxis = list(title = 'count'), barmode = 'group',
+         width = 800, height = 400)
+```
+
+- Pie Chart
+```{r fig.height = 4, fig.width = 4}
+#列管縣市太多，很多面積很小，取場址面積大於中位數的來畫圖
+summarise_data1 <- summarise_data %>% 
+  arrange(sum_area %>% desc) %>%  # 降冪排序
+  filter(sum_area > median(sum_area)) %>%  # 篩選大於中位數者
+  slice(-1) # 移除全國總和數據
+
+plot_ly(summarise_data1, labels = ~county, values = ~sum_area, type = 'pie',
+        textinfo = 'label+percent') %>%
+  layout(title = '場址面積總和',  width = 800, height = 500,
+         margin=list(l = 100, r = 50, b = 100, t = 100, pad = 4))
+```
+
+
+
+
 ### **2.計算農地樣區是否有超標情形**
+- 計算農試所資料與環保署案件資料場址距離
 - `mindistance` (與最近的環保署列管農地距離，單位公尺)
 - `Is_monitored` (境內是否有環保署列管農地。1有，0無)
 - `minover` (方圓1公里內其他超標點總數)
+
+
 
 ```{r}
 # 以農試所樣區資料為主體，計算每一個樣區與環保署列管農地的最短距離
@@ -368,28 +422,10 @@ stat_over %>% kable(.,format = "html") %>%
 
 ---
 
-##PART3--用leaflet畫地圖
-
-### 地圖一：兩份資料交叉比對
-
-```{r　out.width ='600px', out.height ='700px'}
-library(leaflet)
-
-#先把要點上圖的資料篩選出來
-EPA <- data_EPA %>% filter(free_date=="2016-12-18") %>% select(lat, lon, area)
-TARI <- data_TARI %>% select(lat = Y,lon = X, area = AREA)
 
 
-leaflet() %>% setView(lng=120.58,lat=23.58,zoom=8) %>% 
-  addProviderTiles("Esri.WorldImagery") %>%
-  addCircles(data = EPA, color = "red", 
-             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area)/2) %>%
-  addCircles(data = TARI, color = "yellow",
-             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area)/2)
- 
-```
 
-### 地圖二：用log(mindistance)畫地圖
+### **4.用log(mindistance)畫地圖**
 
 ```{r out.width ='600px', out.height ='700px'}
 TARI <- data_TARI %>% 
