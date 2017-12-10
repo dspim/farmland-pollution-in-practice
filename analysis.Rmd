@@ -121,10 +121,11 @@ for(i in 1:nrow(data_EPA)){
 
 # 計算各縣市列管中與解除列管的平均列管月份
 avg_month <- data_EPA %>% group_by(county) %>% 
-  summarise(control_month = mean(totol_month[free_date=="2016-12-18"], na.rm = TRUE) %>% 
+  summarise(control_month = mean(totol_month[free_date!="2016-12-18"], na.rm = TRUE) %>% 
                             round(), 
             free_month = mean(totol_month[free_date!="2016-12-18"], na.rm = TRUE) %>% 
                          round())
+# 未解列的資料，之前處理解列日統一認成"2016-12-18"；此處將未解列的資料不做平均列管的整理
 # 因為資料中有一筆沒有列管時間，因此把參數 na.rm 改為TRUE，才可以運算
 
 # 把無列管中的平均月份帶0
