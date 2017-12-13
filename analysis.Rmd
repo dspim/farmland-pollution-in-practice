@@ -1,6 +1,6 @@
 ---
 title: "農地重金屬污染潛勢分析實作 by R"
-author: "Ting-An Jiang, Yu Ying Han, Johnson Hsieh , Ning Chen"
+author: "Ting-An Jiang, Yu Ying Han, Johnson Hsieh, Ning Chen"
 date: "2017年11月25日"
 output:
   html_document:
