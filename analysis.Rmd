@@ -137,19 +137,22 @@ summarise_data <- summarise_data %>%
 
 ### **3.計算全國加總**
 ```{r}
-tmp <- colSums(summarise_data[,2:8]) %>% t() %>% as.data.frame() %>% 
+tmp1 <- colSums(summarise_data[,2:8]) %>% t() %>% as.data.frame() %>% 
   mutate(ratio_control = sprintf("%1.0f%%",count_control/count*100),
-         ratio_free = sprintf("%1.0f%%",count_free/count*100)) %>% 
-  cbind(.,colMeans(summarise_data[,11:12]) %>% round() %>% t() %>% as.data.frame()) %>%
-  mutate(county="全國") %>% 
-  select(12,1:11)
-
+         ratio_free = sprintf("%1.0f%%",count_free/count*100))
+tmp2<-
+  colMeans(summarise_data[,11:12]) %>% round() %>% t() %>% as.data.frame() %>%
+  mutate(county="全國") 
+#各縣市平均列管月數及平均解列月數轉換成全國平均列管月及解列月數
+tmp<-cbind(tmp1,tmp2)
+#將 全國相關的兩個資料做合併
 summarise_data <- rbind(tmp, summarise_data)
+#與原先各縣市資料做合併
 ```
 
 ### **4.將欄位改成中文敘述並進行展示**
 ```{r eval=FALSE}
-tmp2 <- 
+tmp3 <- 
   summarise_data %>% 
   select(`全台縣市`=county,
          `案件數`=count,
@@ -164,14 +167,14 @@ tmp2 <-
          `列管中_平均列管月份`=control_month,
          `解除列管_平均列管月份`=free_month) %>% 
   arrange(desc(`案件數`))
-tmp2
+tmp3
 ```
 
 
 ```{r echo=FALSE}
 library(knitr)
 library(kableExtra)
-tmp2 <- 
+tmp3 <- 
   summarise_data %>% 
   select(`全台縣市`=county,
          `案件數`=count,
@@ -186,7 +189,7 @@ tmp2 <-
          `列管中_平均列管月份`=control_month,
          `解除列管_平均列管月份`=free_month) %>% 
   arrange(desc(`案件數`))
-tmp2 %>% kable(.,format = "html") %>% 
+tmp3 %>% kable(.,format = "html") %>% 
   kable_styling(bootstrap_options = "striped", font_size = 12) %>% 
   scroll_box(height = "350px")
 ```
@@ -198,9 +201,9 @@ tmp2 %>% kable(.,format = "html") %>%
 library(plotly)
 
 plot_ly(summarise_data, x = ~county, y = ~count_control, type = "bar") %>% 
-  layout(title = "所有案件",
+  layout(title = "所有列管案件",
          xaxis = list(title = '全台縣市'),
-         yaxis = list(title = '案件數'),
+         yaxis = list(title = '列管案件數'),
          width = 750, height = 400)
 
 # x軸依據案件數做排序
@@ -246,8 +249,11 @@ plot_ly(summarise_data1, labels = ~county, values = ~sum_area, type = 'pie',
 ```{r}
 head(data_EPA,3) #可以看到座標欄位裡面有：和，
 TWD97 <- data_EPA$coordinate %>% as.character() %>% 
-  stringr::str_split(.,'[，：]',simplify = TRUE) %>% 
-  as.data.frame(., stringsAsFactors=FALSE) %>% select(x=2,y=4) 
+#將原本是factor轉成character
+  stringr::str_split(.,'[，：]',simplify = TRUE) %>% 
+#將,;都切開
+  as.data.frame(., stringsAsFactors=FALSE) %>% select(x=2,y=4) 
+#只選第二及第四欄給欄位名x及y 
 ```
 
 - 將經緯度資訊從[TWD97轉為WGS84](https://goo.gl/dDo4mQ)
