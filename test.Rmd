@@ -1,0 +1,448 @@
+---
+title: "農地重金屬污染潛勢分析實作 by R"
+author: "Ting-An Jiang, Yu Ying Han, Johnson Hsieh"
+date: "2017年11月25日"
+output:
+  html_document:
+    css: styles.css
+    fig_height: 6
+    fig_width: 4
+    theme: spacelab
+    toc: true
+    toc_float: 
+      collapsed: false
+      smooth_scroll: false
+---
+
+```{r setup, include=FALSE}
+# install.packages("knitr")
+library(knitr)
+opts_chunk$set(echo = TRUE,
+               warning=FALSE,
+               message=FALSE,
+               comment="",
+               out.width ='500px',
+               out.height ='500px')
+options(width = 100)
+```
+![](http://i0.wp.com/d4sg.org/wp-content/uploads/2016/06/1.jpg)
+
+## 緣起
+土地孕育著無數生命，如同人類的母親。然而當台灣工商業愈加發達，許多農地也在發展歷程中遭汙染。
+
+為讓民眾瞭解農地汙染狀況，[台灣環境資訊協會](http://teia.tw/zh-hant)2015年10月發起「[守護農地計畫](http://beta.hackfoldr.org/farmland)」，希望敦促政府積極行政，讓國民吃得安心，使土地生生不息。
+
+透過智庫驅動（DSP）發起的「[D4SG資料英雄計畫](https://d4sg.org)」，環資與政治大學資訊科學系/所、新聞系的學生2016年3月下旬組成跨領域團隊，透過資料科學方法，協助環資找出**可能受重金屬汙染卻未受政府管制的農地**，且分析各縣市的差異，而後希望發展相關專題報導。
+
+這份教案在保留原汁原味的前提下，以環保署2016年的列管資料重現當時的研究成果，以本著作係採用<a rel="license" href="http://creativecommons.org/licenses/by/3.0/tw/">創用 CC 姓名標示 3.0 台灣 授權條款</a>授權。
+
+### 記事
+> - 2015.10.  台灣環境資訊協會發起守護農地計畫    
+> - 2015.11.  智庫驅動與開拓基金會舉辦公益加值資料工作坊    
+> - 2016.03.  參與D4SG資料英雄計畫，透過資料解決問題    
+> - 2016.06.  成果發表會、環資發布新聞稿    
+> - 2016.07.  成果納入環保署土壤及地下水污染調查及整治計畫    
+> - 2017.02.  完成8百多處初篩，部分案例進入第二階段細調    
+> - 2017.11.  將成果製作成R語言教材對外發布    
+> - 2018.03.  預計完成細調並提報告    
+
+
+## 環境設定
+### 1.載入實作練習包
+- 先確認您的電腦安裝了[R](http://cran.csie.ntu.edu.tw/) 與 [R studio](https://www.rstudio.com/products/rstudio/download/#download)
+- 進入課程練習包教材 [Github頁面](https://github.com/dspim/farmland-pollution-in-practice)
+- 將請到本頁面中點選 [Clone or download -> Download ZIP](https://github.com/dspim/farmland-pollution-in-practice/archive/master.zip)，將課程包下載到自己的電腦中
+- 解開壓縮後點擊 `FPP.Rproj` 開啟實作練習教材
+
+### 2.安裝需到的R套件
+```{r}
+list.of.packages <- c("knitr", "kableExtra", "stringr", "dplyr", "plotly", "scales", "leaflet")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+```
+
+###  3.資料匯入
+- 使用 `read.csv` 匯入資料
+- 建議把游標移到`" "` (雙引號) 裡面按Tab鍵選取檔案
+```{r}
+data_EPA <- read.csv("data/環保署列管污染農地_utf8.csv", fileEncoding = "utf8")
+data_TARI <- read.csv("data/農地重金屬超標未列管_utf8.csv", fileEncoding = "utf8")
+```
+
+---
+
+## PART1--環保署資料實作
+環保署「土壤及地下水列管場址」資料，提供有公告列管的農地污染控制場址地號，截至2016-12-18共計5485筆。
+
+### **1.使用 `dplyr` 套件製作敘述統計表**
+ 
+```{r}
+library(dplyr)
+#因為沒有全部要用，擷取需要用到的資訊，並另外命名為英文
+data_EPA <- data_EPA %>% 
+  select(county=1, coordinate=3, area=7, control_date=8, free_date=10)
+
+# 預覽資料
+head(data_EPA)
+
+summarise_data <- data_EPA %>% 
+group_by(county) %>%                                     # 以縣市做加總
+  summarise(count = n(),                                 # 所有案件數
+            sum_area = sum(area),                        # 場址面積總和
+            control_area = sum(area[free_date=="無"]),   # 列管面積總和 (平方公尺)
+            free_area = sum(area[free_date!="無"]),      # 解除面積總和 (平方公尺)
+            count_control = sum(free_date=="無"),        # 列管案件
+            count_free = sum(free_date!="無")) %>%       # 解除列管案件
+  mutate(avg_area = sum_area/count,                      # 平均場址面積 (平方公尺)
+         ratio_control = sprintf("%1.0f%%",count_control/count*100), # 列管比例
+         ratio_free = sprintf("%1.0f%%",count_free/count*100))       # 解除列管比例
+
+```
+### 作圖
+```{r out.height ='400px'}
+library(plotly)
+plot_ly(summarise_data, x = ~county, y = ~count_control, type = "bar") %>% 
+  layout(title = "所有列管案件",
+         xaxis = list(title = '全台縣市'),
+         yaxis = list(title = '列管案件數'),
+         width = 750, height = 400)
+```
+
+
+
+### **2.計算平均列管月份**
+
+```{r}
+#data_EPA的格式是Factor
+
+data_EPA <- mutate(data_EPA,
+                   control_date = as.Date(control_date), # 把列管時間轉成日期格式
+                   free_date = as.Date(free_date), # 把列管時間轉成日期格式
+                   # 把尚未解除列管的時間帶資料收集截止時間"2016-12-18"，以便計算列管時間
+                   free_date = replace(free_date, 
+                                       which(is.na(free_date)), 
+                                       as.Date("2016-12-18"))
+                   )
+
+# 計算列管月份
+data_EPA$totol_month <- NA
+for(i in 1:nrow(data_EPA)){
+  tryCatch({ # 因為資料裡有其中一筆沒有列管時間，我們加tryCatch讓他忽略錯誤，讓迴圈可以正常執行完
+  data_EPA$totol_month[i] <- 
+    length(seq(from=data_EPA$control_date[i], to=data_EPA$free_date[i], by='month')) 
+  }, error=function(e){})
+}
+
+# 計算各縣市列管中與解除列管的平均列管月份
+avg_month <- data_EPA %>% group_by(county) %>% 
+  summarise(control_month = mean(totol_month[free_date=="2016-12-18"], na.rm = TRUE) %>% 
+                            round(), 
+  #找出列管中
+            free_month = mean(totol_month[free_date!="2016-12-18"], na.rm = TRUE) %>% 
+                         round())
+  #找出解列的 
+# 因為資料中有一筆沒有列管時間，因此把參數 na.rm 改為TRUE，才可以運算
+
+# 把無列管中的平均月份帶0
+avg_month[is.na(avg_month)] <- 0
+
+# 合併回summarise_data
+summarise_data <- summarise_data %>% 
+  left_join(avg_month, by="county")
+```
+
+### **3.計算全國加總**
+```{r}
+tmp1 <- colSums(summarise_data[,2:8]) %>% t() %>% as.data.frame() %>% 
+  mutate(ratio_control = sprintf("%1.0f%%",count_control/count*100),
+         ratio_free = sprintf("%1.0f%%",count_free/count*100))
+tmp2<-
+  colMeans(summarise_data[,11:12]) %>% round() %>% t() %>% as.data.frame() %>%
+  mutate(county="全國") 
+#各縣市平均列管月數及平均解列月數轉換成全國平均列管月及解列月數
+tmp<-cbind(tmp1,tmp2)
+#將 全國相關的兩個資料做合併
+summarise_data <- rbind(tmp, summarise_data)
+#與原先各縣市資料做合併
+```
+### 作圖
+- Bar Chart
+```{r out.height ='400px'}
+
+# x軸依據案件數做排序
+plot_ly(summarise_data, 
+         x = ~reorder(county, -count_control), 
+         y = ~count_control, type = "bar") %>% 
+  layout(title = "所有列管案件",
+         xaxis = list(title = '全台縣市'),
+         yaxis = list(title = '列管案件數'),
+         width = 750, height = 400)
+```
+
+
+### **4.將欄位改成中文敘述並進行展示**
+```{r eval=FALSE}
+tmp3 <- 
+  summarise_data %>% 
+  select(`全台縣市`=county,
+         `案件數`=count,
+         `場址面積總和`=sum_area,
+         `列管面積總和`=control_area,
+         `解除列管面積總和`=free_area,
+         `平均場址面積`=avg_area,
+         `列管案件`=count_control,
+         `解除列管案件`=count_free,
+         `列管案件比`=ratio_control,
+         `解除列管案件比`=ratio_free,
+         `列管中_平均列管月份`=control_month,
+         `解除列管_平均列管月份`=free_month) %>% 
+  arrange(desc(`案件數`))
+tmp3
+```
+
+
+```{r echo=FALSE}
+library(knitr)
+library(kableExtra)
+tmp3 <- 
+  summarise_data %>% 
+  select(`全台縣市`=county,
+         `案件數`=count,
+         `場址面積總和`=sum_area,
+         `列管面積總和`=control_area,
+         `解除列管面積總和`=free_area,
+         `平均場址面積`=avg_area,
+         `列管案件`=count_control,
+         `解除列管案件`=count_free,
+         `列管案件比`=ratio_control,
+         `解除列管案件比`=ratio_free,
+         `列管中_平均列管月份`=control_month,
+         `解除列管_平均列管月份`=free_month) %>% 
+  arrange(desc(`案件數`))
+tmp3 %>% kable(.,format = "html") %>% 
+  kable_styling(bootstrap_options = "striped", font_size = 12) %>% 
+  scroll_box(height = "350px")
+```
+
+
+
+---
+
+##PART2--農試所資料實作
+農委會農業試驗所（農試所）之「土壤品質及生產力調查」資料。原始資料是1992年至2008年間進行的全國土壤採樣調查資料，累積約13萬筆，涵蓋78萬公頃表土，包含鎘、鉻、銅、鎳、鉛、鋅等六項重金屬有效性之調查。該資料是以250公尺*250公尺網格（6.25公頃）為單位。
+
+由於農試所資料與環保署現今重金屬管制標準檢測方法不同，前者是透過0.1M鹽酸方法，後者是經過王水消化法，需要進行公式轉換，在此提供933筆環保數超標數據。
+
+```{r}
+# 預覽資料
+head(data_TARI)
+```
+
+
+### **1.重金屬轉換公式**
+農試所以 0.1M 鹽酸萃取抽出分析土壤中的重金屬濃度，其數據轉為王水消化法的推估值 (AR，以下為農試所使用的迴歸轉換公式) 後，再利用環保署現行管制標準進行篩檢。
+
+| 重金屬名稱 | 重金屬轉換公式 | 環保署農地管制值 |
+| -------- | -------- | -------- |
+| 銅     | CUAR = 2.035*CU + 11.884     | 200     |
+| 鋅     | ZNAR = 2.487*ZN + 89.711     | 600     |
+| 鎘     | CDAR = 1.4578*CD + 0.0323    | 5       |
+| 鎘     | CRAR = 17.35*CR+ 31.91       | 250     |
+| 鎳     | NIAR = 5.13*NI+ 14.56        | 200     |
+| 鉛     | PBAR = 2.811*PB+ 6.715       | 500     |
+
+
+```{r}
+data_TARI <- data_TARI %>% 
+  mutate(CUAR = 2.035*CU + 11.884,
+         CUAR_OVER = ifelse(CUAR>200,1,0),
+         ZNAR = 2.487*ZN + 89.711,
+         ZNAR_OVER = ifelse(ZNAR>600,1,0),
+         CDAR = 1.4578*CD + 0.0323,
+         CDAR_OVER = ifelse(CDAR>5,1,0),
+         CRAR = 17.35*CR+ 31.91,
+         CRAR_OVER = ifelse(CRAR>250,1,0),
+         NIAR = 5.13*NI+ 14.56,
+         NIAR_OVER = ifelse(NIAR>200,1,0),
+         PBAR = 2.811*PB+ 6.715,
+         PBAR_OVER = ifelse(PBAR>500,1,0),
+         OVER = ifelse(CUAR_OVER+ZNAR_OVER+CDAR_OVER+CRAR_OVER+
+                       NIAR_OVER+PBAR_OVER>=1, 1, 0))
+```
+
+
+### **2 將農試所的超標與環保署列管案件在地圖上比較分布差異**
+
+#### **2.1環保署資料場址座標轉經緯度**
+
+- 把TWD97位址資訊抓出來，分割成x軸與y軸
+```{r}
+head(data_EPA,3) #可以看到座標欄位裡面有：和，
+TWD97 <- data_EPA$coordinate %>% as.character() %>% 
+#將原本是factor轉成character
+  stringr::str_split(.,'[，：]',simplify = TRUE) %>% 
+#將,;都切開
+  as.data.frame(., stringsAsFactors=FALSE) %>% select(x=2,y=4) 
+#只選第二及第四欄給欄位名x及y
+```
+
+- 將經緯度資訊從[TWD97轉為WGS84](https://goo.gl/dDo4mQ)
+- 匯入[轉碼程式包](https://github.com/snexuz/TWD97TM2toWGS84)並用`source()`載入
+- 利用轉碼函式將TWD97座標轉成經緯度座標系統
+```{r}
+source("https://raw.githubusercontent.com/snexuz/TWD97TM2toWGS84/master/TWD97TM2toWGS84.R")
+WGS84 <- TWD97TM2toWGS84(TWD97$x, TWD97$y) %>% as.data.frame()
+
+#合併回原本的data
+data_EPA$coordinate <- NULL
+data_EPA <- cbind(data_EPA,TWD97,WGS84)
+head(data_EPA)
+```
+
+
+
+
+#### **2.2用leaflet畫地圖**
+
+#### 地圖一：兩份資料交叉比對
+
+```{r　out.width ='600px', out.height ='700px'}
+library(leaflet)
+
+#先把要點上圖的資料篩選出來
+EPA <- data_EPA %>% filter(free_date=="2016-12-18") %>% select(lat, lon, area)
+TARI <- data_TARI %>% select(lat = Y,lon = X, area = AREA)
+
+
+leaflet() %>% setView(lng=120.58,lat=23.58,zoom=8) %>% 
+  addProviderTiles("Esri.WorldImagery") %>%
+  addCircles(data = EPA, color = "red", 
+             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area)/2) %>%
+  addCircles(data = TARI, color = "yellow",
+             lng = ~lon, lat = ~lat, weight = 1, radius = ~sqrt(area)/2)
+ 
+```
+
+
+## Part 3 同學實作練習
+
+### **1.使用 `plotly` 套件環保署繪製統計圖表**
+
+- Grouped Bar Chart
+- with Hover Text and Rotated Labels
+```{r out.height ='400px'}
+plot_ly(summarise_data, 
+        x = ~reorder(county, -count_control), 
+        y = ~count_control, type = 'bar',
+        name = '列管案件', text = ~ratio_control) %>%
+  add_trace(y = ~count_free, name = '解除列管案件', text = ~ratio_free) %>%
+  layout(xaxis = list(title = "", tickangle = -45), 
+         yaxis = list(title = 'count'), barmode = 'group',
+         width = 800, height = 400)
+```
+
+- Pie Chart
+```{r fig.height = 4, fig.width = 4}
+#列管縣市太多，很多面積很小，取場址面積大於中位數的來畫圖
+summarise_data1 <- summarise_data %>% 
+  arrange(sum_area %>% desc) %>%  # 降冪排序
+  filter(sum_area > median(sum_area)) %>%  # 篩選大於中位數者
+  slice(-1) # 移除全國總和數據
+
+plot_ly(summarise_data1, labels = ~county, values = ~sum_area, type = 'pie',
+        textinfo = 'label+percent') %>%
+  layout(title = '場址面積總和',  width = 800, height = 500,
+         margin=list(l = 100, r = 50, b = 100, t = 100, pad = 4))
+```
+
+
+
+
+### **2.計算農地樣區是否有超標情形**
+- 計算農試所資料與環保署案件資料場址距離
+- `mindistance` (與最近的環保署列管農地距離，單位公尺)
+- `Is_monitored` (境內是否有環保署列管農地。1有，0無)
+- `minover` (方圓1公里內其他超標點總數)
+
+
+
+```{r}
+# 以農試所樣區資料為主體，計算每一個樣區與環保署列管農地的最短距離
+for(i in 1:nrow(data_TARI)){
+  data_TARI$mindistance[i] <- 
+    ((data_TARI$XLO[i]-as.integer(data_EPA$x))^2+
+       (data_TARI$YLO[i]-as.integer(data_EPA$y))^2) %>% 
+    sqrt %>% min(na.rm = TRUE)
+}
+
+
+# 以農試所樣區為主體，計算每一個樣區方圓一公里內有多少個超標樣區
+for(i in 1:nrow(data_TARI)){
+  tmp <- sqrt((data_TARI$XLO[i]-data_TARI$XLO)^2+(data_TARI$YLO[i]-data_TARI$YLO)^2)
+  
+  data_TARI$minover[i] <- sum(tmp<=1000, na.rm = TRUE)
+}
+
+# 以農試所樣區為主體，計算每一個樣區境內是否有環保署列管農地
+data_TARI <- data_TARI %>% mutate(Is_monitored=ifelse(mindistance<=200, 1, 0))
+```
+
+
+### **3.與環保署的資料合併，計算統計指標**
+
+```{r}
+library(scales)
+# 計算各縣市統計 `group_by(county)`
+stat_over <- 
+  data_TARI %>% group_by(county) %>%
+  summarise(`重金屬超標`=sum(OVER),
+            `超標未曾列管`=sum(ifelse(OVER+Is_monitored==1,1,0))) %>%
+  mutate(`超標未曾列管比例`=percent(`超標未曾列管`/`重金屬超標`),
+         `超標列管比例`=percent(1-`超標未曾列管`/`重金屬超標`)) %>% 
+  arrange(desc(`重金屬超標`))
+
+# 加入全國訊息
+stat_over <-
+  data_TARI %>% 
+  summarise(`重金屬超標`=sum(OVER),
+            `超標未曾列管`=sum(ifelse(OVER+Is_monitored==1,1,0))) %>%
+  mutate(`超標未曾列管比例`=percent(`超標未曾列管`/`重金屬超標`),
+         `超標列管比例`=percent(1-`超標未曾列管`/`重金屬超標`)) %>% 
+  mutate(county="全國") %>% 
+  select(5, 1:4) %>%    # 使用mutate新增的欄位會排在最後面，利用select把county的順序往前移 
+  full_join(stat_over)
+  
+# stat_over
+```
+```{r echo=FALSE}
+stat_over %>% kable(.,format = "html") %>% 
+  kable_styling(bootstrap_options = "striped", font_size = 12) %>% 
+  scroll_box(width = "750px", height = "350px")
+```
+
+---
+
+
+
+
+### **4.用log(mindistance)畫地圖**
+
+```{r out.width ='600px', out.height ='700px'}
+TARI <- data_TARI %>% 
+  select(lat = Y,lon = X, area = AREA ,mindistance) %>%
+  mutate(log_mindistance=log(mindistance))
+
+leaflet() %>% 
+  addCircles(data=TARI,lng = ~lon, lat = ~lat, 
+             radius = ~sqrt(area)/2, weight = 1,
+             fill=TRUE, fillOpacity = 0.8,
+             color=~colorNumeric(c("#CD0000", "#FFFFFF","#0B752F"),
+                                 log_mindistance)(log_mindistance)) %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addLegend(position = 'topleft',
+            pal =colorNumeric(c("#CD0000", "#FFFFFF","#0B752F"),
+                              domain=TARI$log_mindistance),
+            values=TARI$log_mindistance,
+            title = 'log-mindistance')
+```
+
